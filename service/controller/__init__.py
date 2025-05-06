@@ -1,0 +1,11 @@
+from .base_controller import base_controller
+
+from .attendance_controller import attendance_controller
+from .face_verification_controller import face_verification_controller
+from .user_profile_controller import user_profile_controller
+from .auth_controller import auth_controller
+
+base_controller.register_blueprint(attendance_controller)
+base_controller.register_blueprint(face_verification_controller)
+base_controller.register_blueprint(user_profile_controller)
+base_controller.register_blueprint(auth_controller)
