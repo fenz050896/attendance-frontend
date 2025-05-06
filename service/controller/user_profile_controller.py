@@ -143,10 +143,11 @@ def open_saved_context_key():
             headers=request.headers
         )
 
-        resp_data = response.json()['data']
+        response_json = response.json()
+        resp_data = response_json['data']
         
-        if resp_data['error']:
-            return jsonify(resp_data), response.status_code
+        if response_json['error']:
+            return jsonify(response_json), response.status_code
 
         input = request.get_json()
         mnemonic_phrase = input['mnemonic_phrase']
