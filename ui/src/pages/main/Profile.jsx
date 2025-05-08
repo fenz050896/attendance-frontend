@@ -44,6 +44,8 @@ function ProfilePage() {
   const { showSnackbar } = useSnackbar();
   const user = useBoundStore((state) => state.user);
   const setUser = useBoundStore((state) => state.setUser);
+  const contextIsOpened = useBoundStore((state) => state.contextOpened);
+  const setContextOpened = useBoundStore((state) => state.setContextOpened);
   const {
     handleSubmit,
     control,
@@ -66,7 +68,6 @@ function ProfilePage() {
   const [checkContextLoading, setCheckContextLoading] = useState(false);
   const [hasEncryptionContext, setHasEncryptionContext] = useState(false);
   const [openContextLoading, setOpenContextLoading] = useState(false);
-  const [contextIsOpened, setContextIsOpened] = useState(false);
 
   const checkSavedContextKey = async (signal) => {
     try {
@@ -196,7 +197,7 @@ function ProfilePage() {
           message: 'Berhasil membuka konteks',
           severity: 'success',
         });
-        setContextIsOpened(true);
+        setContextOpened(true);
       } else {
         showSnackbar({
           message: 'Gagal membuka konteks, silakan coba lagi beberapa saat (1)',

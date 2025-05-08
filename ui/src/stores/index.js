@@ -9,6 +9,8 @@ const useBoundStore = create()((...a) => ({
     partialize: (state) => ({
       user: state.user,
       token: state.token,
+      contextOpened: state.contextOpened,
+      hasRegisteredFaces: state.hasRegisteredFaces,
     }),
   })(...a),
 }));

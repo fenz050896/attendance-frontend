@@ -9,6 +9,7 @@ import Card from '@mui/material/Card';
 import CardActions from '@mui/material/CardActions';
 import CardContent from '@mui/material/CardContent';
 import Grid from '@mui/material/Grid';
+import Skeleton from '@mui/material/Skeleton';
 import Typography from '@mui/material/Typography';
 
 import CameraAltOutlinedIcon from '@mui/icons-material/CameraAltOutlined';
@@ -19,18 +20,23 @@ import FolderOpenOutlinedIcon from '@mui/icons-material/FolderOpenOutlined';
 import SendOutlinedIcon from '@mui/icons-material/SendOutlined';
 
 import useSnackbar from '../../hooks/Snackbar';
+import useBoundStore from '../../stores';
 import FaceVerificationService from '../../services/FaceVerificationService';
 
 import Gambar1 from '../../assets/gambar_1.jpg';
 import Gambar2 from '../../assets/gambar_2.jpg';
 import Gambar3 from '../../assets/gambar_3.jpeg';
 
-const hasRegisteredFace = false;
 const images = [Gambar1, Gambar2, Gambar3];
 const maxImages = 3;
 
 function FaceRegistrationPage() {
   const { showSnackbar } = useSnackbar();
+  const contextIsOpened = useBoundStore((state) => state.contextOpened);
+  const hasRegisteredFaces = useBoundStore((state) => state.hasRegisteredFaces);
+  const setHasRegisteredFaces = useBoundStore(
+    (state) => state.setHasRegisteredFaces
+  );
 
   const cameraRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -38,6 +44,8 @@ function FaceRegistrationPage() {
 
   const [openCamera, setOpenCamera] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [getRegisteredUserFacesLoading, setGetRegisteredUserFacesLoading] =
+    useState(true);
   const [imageSrcs, setImageSrcs] = useState([]);
 
   const capture = useCallback(() => {
@@ -53,7 +61,7 @@ function FaceRegistrationPage() {
       setImageSrcs((prev) => [...prev, imageSrc]);
     }
     return;
-  }, [cameraRef]);
+  }, [cameraRef, imageSrcs]);
 
   const handleFileSelect = (e) => {
     const files = e.target.files;
@@ -80,7 +88,7 @@ function FaceRegistrationPage() {
   const handleRemoveImage = (idx) => {
     setImageSrcs((prev) => prev.filter((_, i) => i !== idx));
   };
-  const handleRegisterImages = async () => {
+  const handleRegisterFaceImages = async () => {
     if (imageSrcs.length === 0) {
       return;
     }
@@ -92,7 +100,7 @@ function FaceRegistrationPage() {
       );
       const promiseFiles = await Promise.all(files);
       const formData = new FormData();
-      const filename = dayjs().format('Y-m-d_HH-mm-ss');
+      const filename = dayjs().format('YYYY-MM-DD_HH-mm-ss');
       promiseFiles.forEach((blobFile, idx) =>
         formData.append('images', blobFile, `${filename}_${idx}.jpg`)
       );
@@ -100,12 +108,19 @@ function FaceRegistrationPage() {
       const abortController = new AbortController();
       runningRequest.current = abortController;
 
-      const res = await FaceVerificationService.registerFaces(formData, abortController.signal)
+      const res = await FaceVerificationService.registerFaces(
+        formData,
+        abortController.signal
+      );
 
-      const { message, success } = res.data;
+      const { message, error } = res.data;
+      if (!error) {
+        setHasRegisteredFaces(true);
+      }
+
       showSnackbar({
         message,
-        severity: success ? 'success' : 'error',
+        severity: error ? 'error' : 'success',
       });
     } catch (err) {
       showSnackbar({
@@ -114,20 +129,52 @@ function FaceRegistrationPage() {
       });
     } finally {
       setLoading(false);
+      if (runningRequest.current) {
+        runningRequest.current = null;
+      }
     }
   };
 
   useEffect(() => {
+    const getRegisteredUserFaces = (signal) => {
+      try {
+      } catch (err) {
+      } finally {
+      }
+    };
     return () => {
       if (runningRequest.current) {
-        runningRequest.current.cancel();
+        runningRequest.current.abort();
+        runningRequest.current = null;
       }
     };
   }, []);
 
   return (
     <Grid container>
-      {hasRegisteredFace ? (
+      {getRegisteredUserFacesLoading ? (
+        <>
+          <Grid size={12} sx={{ marginBlockEnd: 5 }}>
+            <Skeleton variant="rectangular" width="100%" height={50} />
+          </Grid>
+          <Grid
+            container
+            size={12}
+            columnSpacing={2}
+            sx={{ marginBlockEnd: 2 }}
+          >
+            <Grid size={4}>
+              <Skeleton variant="rectangular" width="100%" height={350} />
+            </Grid>
+            <Grid size={4}>
+              <Skeleton variant="rectangular" width="100%" height={350} />
+            </Grid>
+            <Grid size={4}>
+              <Skeleton variant="rectangular" width="100%" height={350} />
+            </Grid>
+          </Grid>
+        </>
+      ) : hasRegisteredFaces ? (
         <>
           <Grid size={12} sx={{ marginBlockEnd: 5 }}>
             <Alert variant="outlined" severity="success">
@@ -291,7 +338,7 @@ function FaceRegistrationPage() {
               endIcon={<SendOutlinedIcon />}
               variant="contained"
               color="primary"
-              onClick={handleRegisterImages}
+              onClick={handleRegisterFaceImages}
             >
               Daftarkan Gambar Terpilih
             </Button>

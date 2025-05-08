@@ -12,6 +12,9 @@ const endpoints = {
             },
         });
     },
+    getRegisteredFaces: (signal) => {
+        return axios.get(`${url}${module}/registered-faces`, { signal });
+    },
     // verifyFace: `${url}${module}/verify-face`,
     // getFaceData: `${url}${module}/get-face-data`,
     // deleteFaceData: `${url}${module}/delete-face-data`,
