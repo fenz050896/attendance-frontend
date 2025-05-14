@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import dayjs from 'dayjs';
 import Webcam from 'react-webcam';
+import { useNavigate } from 'react-router';
 
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
@@ -32,6 +33,7 @@ const maxImages = 3;
 
 function FaceRegistrationPage() {
   const { showSnackbar } = useSnackbar();
+  const navigate = useNavigate();
   const contextIsOpened = useBoundStore((state) => state.contextOpened);
   const hasRegisteredFaces = useBoundStore((state) => state.hasRegisteredFaces);
   const setHasRegisteredFaces = useBoundStore(
@@ -47,6 +49,7 @@ function FaceRegistrationPage() {
   const [getRegisteredUserFacesLoading, setGetRegisteredUserFacesLoading] =
     useState(true);
   const [imageSrcs, setImageSrcs] = useState([]);
+  const [imageIds, setImageIds] = useState([]);
 
   const capture = useCallback(() => {
     if (cameraRef.current) {
@@ -134,24 +137,51 @@ function FaceRegistrationPage() {
       }
     }
   };
+  const handleGoToProfilePage = () => {
+    navigate('/profile');
+  };
 
   useEffect(() => {
-    const getRegisteredUserFaces = (signal) => {
+    const getRegisteredUserFaces = async (signal) => {
       try {
+        setGetRegisteredUserFacesLoading(true);
+        const res = await FaceVerificationService.getRegisteredFaces(signal);
+        const imageIds = res.data.data;
+        if (!res.data.error && res.data.data.length > 0) {
+          setHasRegisteredFaces(true);
+          setImageIds(imageIds);
+        }
       } catch (err) {
+        if (err.code !== 'ERR_CANCELED') {
+          showSnackbar({
+            message: err,
+            severity: 'error',
+          });
+        }
       } finally {
+        setGetRegisteredUserFacesLoading(false);
       }
     };
+
+    runningRequest.current = new AbortController();
+    getRegisteredUserFaces(runningRequest.current.signal);
+
     return () => {
-      if (runningRequest.current) {
-        runningRequest.current.abort();
-        runningRequest.current = null;
-      }
+      runningRequest.current?.abort();
+      runningRequest.current = null;
     };
   }, []);
 
   return (
     <Grid container>
+      {!contextIsOpened && (
+        <Grid size={12} sx={{ marginBlockEnd: 2 }}>
+          <Alert variant="outlined" severity="info" sx={{ alignItems: 'center' }}>
+            Anda belum membuka konteks untuk keperluan enkripsi dan dekripsi,
+            silakan buka pada <Button variant="text" color="info" onClick={handleGoToProfilePage}>Halaman ini</Button>
+          </Alert>
+        </Grid>
+      )}
       {getRegisteredUserFacesLoading ? (
         <>
           <Grid size={12} sx={{ marginBlockEnd: 5 }}>
@@ -182,7 +212,10 @@ function FaceRegistrationPage() {
             </Alert>
           </Grid>
           <Grid container size={12} columnSpacing={2}>
-            {images.map((image, idx) => (
+            {imageIds.map((item, idx) => (
+              <ImageView key={`image-${idx}`} imageId={item.id} />
+            ))}
+            {/* {images.map((image, idx) => (
               <Grid key={`image-${idx}`} size={4}>
                 <Card>
                   <CardContent
@@ -214,7 +247,7 @@ function FaceRegistrationPage() {
                   </CardActions>
                 </Card>
               </Grid>
-            ))}
+            ))} */}
           </Grid>
         </>
       ) : (
@@ -333,7 +366,7 @@ function FaceRegistrationPage() {
           </Grid>
           <Grid size={12} container justifyContent="flex-end">
             <Button
-              disabled={imageSrcs.length === 0}
+              disabled={imageSrcs.length < maxImages}
               loading={loading}
               endIcon={<SendOutlinedIcon />}
               variant="contained"
@@ -345,6 +378,68 @@ function FaceRegistrationPage() {
           </Grid>
         </>
       )}
+    </Grid>
+  );
+}
+
+function ImageView({ imageId = null }) {
+  const [imgUrl, setImgUrl] = useState(null);
+
+  useEffect(() => {
+    const fetchImage = async (id, signal) => {
+      try {
+        const response =
+          await FaceVerificationService.getRegisteredFaceContentById(
+            id,
+            signal
+          );
+        const url = URL.createObjectURL(response.data);
+        setImgUrl(url);
+      } catch (err) {
+        console.error('Failed to fetch image:', err);
+      }
+    };
+
+    const abortController = new AbortController();
+    fetchImage(imageId, abortController.signal);
+
+    return () => {
+      if (imgUrl) {
+        URL.revokeObjectURL(imgUrl);
+      }
+      abortController.abort();
+    };
+  }, [imageId]);
+
+  return (
+    <Grid size={4}>
+      <Card>
+        <CardContent
+          sx={{
+            height: 400,
+            backgroundImage: imgUrl ? `url(${imgUrl})` : 'none',
+            backgroundSize: 'contain',
+            backgroundRepeat: 'no-repeat',
+            backgroundPosition: 'center',
+          }}
+        />
+        {/* <CardActions sx={{ justifyContent: 'center', paddingBlock: 2 }}>
+          <Button
+            variant="outlined"
+            startIcon={<EditOutlinedIcon />}
+            color="primary"
+          >
+            Ganti
+          </Button>
+          <Button
+            variant="outlined"
+            startIcon={<DeleteOutlineOutlinedIcon />}
+            color="error"
+          >
+            Hapus
+          </Button>
+        </CardActions> */}
+      </Card>
     </Grid>
   );
 }

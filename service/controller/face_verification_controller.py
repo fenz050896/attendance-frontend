@@ -6,7 +6,9 @@ from flask import (
     Blueprint,
     jsonify,
     request,
-    current_app as app
+    current_app as app,
+    Response,
+    stream_with_context,
 )
 import cv2
 import numpy as np
@@ -82,16 +84,22 @@ def register_faces():
                     },
                 }), 400
             
-            real_img = preprocess_result['real_img'].tobytes()
-            rgb_img = preprocess_result['rgb_img'].tobytes()
+            if extension.lower() == '.jpeg':
+                extension = '.jpg'
+            
+            _, real_encoded = cv2.imencode(extension.lower(), preprocess_result['real_img'])
+            __, rgb_encoded = cv2.imencode(extension.lower(), preprocess_result['rgb_img'])
+            
+            real_img = real_encoded.tobytes()
+            rgb_img = rgb_encoded.tobytes()
 
             embedding = main_face.embedding.tolist()
             encrypted_embedding = ts.ckks_vector(context, embedding).serialize()
 
             # Ekstraksi fitur-fitur
             response_data = {
-                'rgb_img': base64.b64encode(real_img).decode(),
-                'real_img': base64.b64encode(rgb_img).decode(),
+                'real_img': base64.b64encode(real_img).decode(),
+                'rgb_img': base64.b64encode(rgb_img).decode(),
                 'filename': file.filename,
                 'size': file_content_size,
                 'mime_type': file.mimetype,
@@ -120,6 +128,42 @@ def register_faces():
     except Exception as e:
         print(traceback.format_exc())
         return jsonify({'error': True, 'message': str(e)}), 500
+    
+@face_verification_controller.route('/get-registered-faces', methods=['GET'])
+def get_registered_faces():
+    try:
+        response = requests.get(
+            f'{BASE_API_URL}/user/face-verification/get-registered-faces',
+            headers=request.headers
+        )
+
+        excluded_headers = ['content-encoding', 'transfer-encoding', 'content-length', 'connection']
+        headers_to_send = [(name, value) for (name, value) in response.raw.headers.items()
+                        if name.lower() not in excluded_headers]
+        return Response(response.content, response.status_code, headers_to_send)
+    except Exception as e:
+        return jsonify({'error': True, 'message': str(e)}), 500
+    
+@face_verification_controller.route('/get-registered-face-content/<string:registered_face_id>', methods=['GET'])
+def get_registered_face_content(registered_face_id):
+    forwarded_headers = {}
+    if 'Authorization' in request.headers:
+        forwarded_headers['Authorization'] = request.headers['Authorization']
+
+    response = requests.get(
+        f'{BASE_API_URL}/user/face-verification/registered-face/{registered_face_id}',
+        headers=forwarded_headers,
+        stream=True
+    )
+
+    if response.status_code != 200:
+        return jsonify({'error': True, 'message': 'Picture not found'}), 404
+    
+    return Response(
+        stream_with_context(response.iter_content(chunk_size=4096)),
+        content_type=response.headers.get('Content-Type', 'application/octet-stream'),
+        status=response.status_code
+    )
 
 @face_verification_controller.route('/<string:user_id>', methods=['GET'])
 def show(user_id):

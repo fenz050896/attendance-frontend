@@ -28,7 +28,6 @@ import SettingsIcon from '@mui/icons-material/Settings';
 import useBoundStore from '../../stores';
 import useSnackbar from '../../hooks/Snackbar';
 import AuthService from '../../services/AuthService';
-import { set } from 'react-hook-form';
 
 const drawerWidth = 240;
 const menus = [
@@ -164,6 +163,8 @@ function MainLayout({ children }) {
   const user = useBoundStore((state) => state.user);
   const setUser = useBoundStore((state) => state.setUser);
   const setToken = useBoundStore((state) => state.setToken);
+  const setContextOpened = useBoundStore((state) => state.setContextOpened);
+  const setHasRegisteredFaces = useBoundStore((state) => state.setHasRegisteredFaces);
   const { showSnackbar } = useSnackbar();
 
   const [open, setOpen] = useState(true);
@@ -190,6 +191,8 @@ function MainLayout({ children }) {
       if (res.status === 200) {
         setUser(null);
         setToken(null);
+        setContextOpened(false);
+        setHasRegisteredFaces(false);
         useBoundStore.persist.clearStorage();
         navigate('/auth/login', { replace: true });
       } else {
