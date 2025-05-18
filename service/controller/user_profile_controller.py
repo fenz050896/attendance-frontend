@@ -27,6 +27,7 @@ from utils import (
     CONTEXT_KEY_FILE_NAME,
     ARGON_SALT_LEN,
     AESGCM_NONCE_LEN,
+    TENSEAL_GLOBAL_SCALE,
 )
 
 user_profile_controller = Blueprint('user_profile_controller', __name__, url_prefix='/user-profile')
@@ -79,7 +80,7 @@ def update():
 def generate_context_key():
     try:
         context = ts.context(**TENSEAL_KWARGS)
-        context.global_scale = 2**40
+        context.global_scale = TENSEAL_GLOBAL_SCALE,
         context.generate_galois_keys()
         context.generate_relin_keys()
 
