@@ -22,13 +22,13 @@ import SendOutlinedIcon from '@mui/icons-material/SendOutlined';
 
 import useSnackbar from '../../hooks/Snackbar';
 import useBoundStore from '../../stores';
-import FaceVerificationService from '../../services/FaceVerificationService';
+import FaceRegistrationService from '../../services/FaceRegistrationService';
 
-import Gambar1 from '../../assets/gambar_1.jpg';
-import Gambar2 from '../../assets/gambar_2.jpg';
-import Gambar3 from '../../assets/gambar_3.jpeg';
+// import Gambar1 from '../../assets/gambar_1.jpg';
+// import Gambar2 from '../../assets/gambar_2.jpg';
+// import Gambar3 from '../../assets/gambar_3.jpeg';
 
-const images = [Gambar1, Gambar2, Gambar3];
+// const images = [Gambar1, Gambar2, Gambar3];
 const maxImages = 3;
 
 function FaceRegistrationPage() {
@@ -91,6 +91,26 @@ function FaceRegistrationPage() {
   const handleRemoveImage = (idx) => {
     setImageSrcs((prev) => prev.filter((_, i) => i !== idx));
   };
+  const getRegisteredUserFaces = async (signal) => {
+    try {
+      setGetRegisteredUserFacesLoading(true);
+      const res = await FaceRegistrationService.getRegisteredFaces(signal);
+      const imageIds = res.data.data;
+      if (!res.data.error && res.data.data.length > 0) {
+        setHasRegisteredFaces(true);
+        setImageIds(imageIds);
+      }
+    } catch (err) {
+      if (err.code !== 'ERR_CANCELED') {
+        showSnackbar({
+          message: err,
+          severity: 'error',
+        });
+      }
+    } finally {
+      setGetRegisteredUserFacesLoading(false);
+    }
+  };
   const handleRegisterFaceImages = async () => {
     if (imageSrcs.length === 0) {
       return;
@@ -111,7 +131,7 @@ function FaceRegistrationPage() {
       const abortController = new AbortController();
       runningRequest.current = abortController;
 
-      const res = await FaceVerificationService.registerFaces(
+      const res = await FaceRegistrationService.registerFaces(
         formData,
         abortController.signal
       );
@@ -119,6 +139,7 @@ function FaceRegistrationPage() {
       const { message, error } = res.data;
       if (!error) {
         setHasRegisteredFaces(true);
+        await getRegisteredUserFaces(abortController.signal);
       }
 
       showSnackbar({
@@ -142,27 +163,6 @@ function FaceRegistrationPage() {
   };
 
   useEffect(() => {
-    const getRegisteredUserFaces = async (signal) => {
-      try {
-        setGetRegisteredUserFacesLoading(true);
-        const res = await FaceVerificationService.getRegisteredFaces(signal);
-        const imageIds = res.data.data;
-        if (!res.data.error && res.data.data.length > 0) {
-          setHasRegisteredFaces(true);
-          setImageIds(imageIds);
-        }
-      } catch (err) {
-        if (err.code !== 'ERR_CANCELED') {
-          showSnackbar({
-            message: err,
-            severity: 'error',
-          });
-        }
-      } finally {
-        setGetRegisteredUserFacesLoading(false);
-      }
-    };
-
     runningRequest.current = new AbortController();
     getRegisteredUserFaces(runningRequest.current.signal);
 
@@ -389,7 +389,7 @@ function ImageView({ imageId = null }) {
     const fetchImage = async (id, signal) => {
       try {
         const response =
-          await FaceVerificationService.getRegisteredFaceContentById(
+          await FaceRegistrationService.getRegisteredFaceContentById(
             id,
             signal
           );
